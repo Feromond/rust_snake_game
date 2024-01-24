@@ -21,10 +21,11 @@ A very simple basic game of snake created in rust. Supports wall collisions, sel
 
 ## About The Project
 
+
 This project is intended to be a simple game version of snake created in rust. Just a way for me to learn the rust programming languge and practice it.
 The goal of this project is to create a snake game with collisions, score, snake growth. Future plans would be to keep track of highscores, and to improve potentially textures and assets to be used instead of just square shapes.
 
-![image]()
+![Image](https://github.com/Feromond/rust_snake_game/assets/53460081/0c927f27-0df9-4b1a-adf1-7ca7dcdc849e)
 
 ## Release Notes:
 
