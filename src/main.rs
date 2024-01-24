@@ -1,6 +1,6 @@
 use ggez::{Context, GameResult};
 use ggez::event::{self, EventHandler};
-use ggez::graphics::{self, Color, MeshBuilder, DrawParam, DrawMode, Rect, Text};
+use ggez::graphics::{self, Color, MeshBuilder, DrawParam, DrawMode, Rect};
 use ggez::input::keyboard::{KeyCode, KeyInput};
 use nalgebra as na;
 use ggez::mint;
