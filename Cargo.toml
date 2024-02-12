@@ -2,6 +2,10 @@
 name = "rust_snake_game"
 version = "0.1.0"
 edition = "2021"
+authors = ["Jacob Mish <JacobPMish@gmail.com>"]
+description = "A very simple primative game of snake built in rust"
+license = "MIT"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,3 +13,10 @@ edition = "2021"
 ggez = "0.9.3"
 nalgebra = "0.32.3"
 rand = "0.8.5"
+
+
+[package.metadata.bundle]
+name = "rust_snake_game"
+identifier = "io.github.Feromond.rust_snake_game"
+description = "A very simple primative game of snake built in rust"
+icon = ["./snake.png"]
