@@ -29,6 +29,7 @@ struct GameState {
     velocity: na::Vector2<f32>,
     last_update: f32,
     score: i32,
+    high_score: i32,
     mode: GameMode,
 }
 
@@ -44,6 +45,7 @@ impl GameState {
             velocity: na::Vector2::new(SNAKE_SIZE, 0.0),
             last_update: 0.0,
             score: 0,
+            high_score: 0,
             mode: GameMode::Menu,
         };
         Ok(s)
@@ -71,6 +73,9 @@ impl EventHandler for GameState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         match self.mode {
             GameMode::Menu => {
+                if self.score > self.high_score {
+                    self.high_score = self.score;
+                }
                 // No game updates in menu mode (I can consider placing some animations here maybe??)
             }
             GameMode::Playing => {
@@ -130,14 +135,19 @@ impl EventHandler for GameState {
 
         match self.mode {
             GameMode::Menu => {
-                let mut menu_text = Text::new("Press Enter to Start\nESC to Exit");
-                menu_text.set_scale(graphics::PxScale::from(50.0));
+                let mut menu_text = Text::new(format!(
+                    "Press Enter to Start\nESC to Exit\nHigh Score: {}",
+                    self.high_score
+                ));
+                menu_text.set_scale(graphics::PxScale::from(60.0));
                 canvas.draw(
                     &menu_text,
-                    DrawParam::default().dest(mint::Point2 {
-                        x: WINDOW_WIDTH * 0.5 - 200.0,
-                        y: WINDOW_HEIGHT * 0.4,
-                    }),
+                    DrawParam::default()
+                        .dest(mint::Point2 {
+                            x: WINDOW_WIDTH * 0.5 - 350.0,
+                            y: WINDOW_HEIGHT * 0.4,
+                        })
+                        .color(Color::from_rgb(0, 255, 0)),
                 );
             }
             GameMode::Playing => {
@@ -166,7 +176,15 @@ impl EventHandler for GameState {
                 score_text.set_scale(graphics::PxScale::from(40.0));
                 canvas.draw(
                     &score_text,
-                    DrawParam::default().dest(mint::Point2 { x: 10.0, y: 10.0 }),
+                    DrawParam::default().dest(mint::Point2 { x: 10.0, y: 60.0 }),
+                );
+                let mut high_score_text = Text::new(format!("High Score: {}", self.high_score));
+                high_score_text.set_scale(graphics::PxScale::from(40.0));
+                canvas.draw(
+                    &high_score_text,
+                    DrawParam::default()
+                        .dest(mint::Point2 { x: 10.0, y: 10.0 })
+                        .color(Color::from_rgb(0, 255, 0)),
                 );
             }
         }
