@@ -135,20 +135,27 @@ impl EventHandler for GameState {
 
         match self.mode {
             GameMode::Menu => {
-                let mut menu_text = Text::new(format!(
-                    "Press Enter to Start\nESC to Exit\nHigh Score: {}",
-                    self.high_score
-                ));
+                let mut menu_text = Text::new(format!("Press Enter to Start\nESC to Exit\n"));
                 menu_text.set_scale(graphics::PxScale::from(60.0));
                 canvas.draw(
                     &menu_text,
+                    DrawParam::default().dest(mint::Point2 {
+                        x: WINDOW_WIDTH * 0.5 - 350.0,
+                        y: WINDOW_HEIGHT * 0.4,
+                    }),
+                );
+                let mut menu_high_score_text =
+                    Text::new(format!("High Score: {}", self.high_score));
+                menu_high_score_text.set_scale(graphics::PxScale::from(60.0));
+                canvas.draw(
+                    &menu_high_score_text,
                     DrawParam::default()
                         .dest(mint::Point2 {
                             x: WINDOW_WIDTH * 0.5 - 350.0,
-                            y: WINDOW_HEIGHT * 0.4,
+                            y: WINDOW_HEIGHT * 0.55,
                         })
                         .color(Color::from_rgb(0, 255, 0)),
-                );
+                )
             }
             GameMode::Playing => {
                 let mut mesh_builder = MeshBuilder::new();
