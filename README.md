@@ -30,6 +30,9 @@ The goal of this project is to create a snake game with collisions, score, snake
 ![Screenshot 2024-03-19 at 2 32 05 PM](https://github.com/Feromond/rust_snake_game/assets/53460081/fc663a1d-b50e-4467-ba1b-bca7676699f2)
 
 
+https://github.com/Feromond/rust_snake_game/assets/53460081/b3208f23-f60d-4da6-bd8d-c99e0a74654d
+
+
 ## Release Notes:
 
 ### v0.1.1
