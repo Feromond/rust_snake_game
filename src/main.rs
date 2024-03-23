@@ -8,7 +8,7 @@ use rand::Rng;
 const SNAKE_SIZE: f32 = 50.0;
 const MOVE_TIME: f32 = 0.075; // Time in seconds between moves
 const WINDOW_WIDTH: f32 = 1600.0; // Set the window width
-const WINDOW_HEIGHT: f32 = 1200.0; // Set the window height
+const WINDOW_HEIGHT: f32 = 1000.0; // Set the window height
 
 enum GameMode {
     Menu,
