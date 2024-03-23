@@ -213,16 +213,16 @@ impl EventHandler for GameState {
             }
             GameMode::Playing => {
                 match key.keycode {
-                    Some(KeyCode::Right) if self.velocity.x == 0.0 => {
+                    Some(KeyCode::Right) | Some(KeyCode::D) if self.velocity.x == 0.0 => {
                         self.velocity = na::Vector2::new(SNAKE_SIZE, 0.0);
                     }
-                    Some(KeyCode::Left) if self.velocity.x == 0.0 => {
+                    Some(KeyCode::Left) | Some(KeyCode::A) if self.velocity.x == 0.0 => {
                         self.velocity = na::Vector2::new(-SNAKE_SIZE, 0.0);
                     }
-                    Some(KeyCode::Up) if self.velocity.y == 0.0 => {
+                    Some(KeyCode::Up) | Some(KeyCode::W) if self.velocity.y == 0.0 => {
                         self.velocity = na::Vector2::new(0.0, -SNAKE_SIZE);
                     }
-                    Some(KeyCode::Down) if self.velocity.y == 0.0 => {
+                    Some(KeyCode::Down) | Some(KeyCode::S) if self.velocity.y == 0.0 => {
                         self.velocity = na::Vector2::new(0.0, SNAKE_SIZE);
                     }
                     Some(KeyCode::Escape) => {
