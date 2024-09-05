@@ -5,10 +5,10 @@ use ggez::{mint, Context, GameResult};
 use nalgebra as na;
 use rand::Rng;
 
-const REFERENCE_WIDTH: f32 = 1200.0;
-const REFERENCE_HEIGHT: f32 = 800.0;
+const REFERENCE_WIDTH: f32 = 1400.0;
+const REFERENCE_HEIGHT: f32 = 1050.0;
 const REFERENCE_SNAKE_SIZE: f32 = 50.0;
-const MOVE_TIME: f32 = 0.075; // Time in seconds between moves
+const MOVE_TIME: f32 = 0.075; // Time in seconds between move
 
 enum GameMode {
     Menu,
@@ -302,7 +302,7 @@ fn main() -> GameResult {
         .window_mode(
             ggez::conf::WindowMode::default()
                 .dimensions(REFERENCE_WIDTH, REFERENCE_HEIGHT)
-                .min_dimensions(REFERENCE_WIDTH, REFERENCE_HEIGHT)
+                .min_dimensions(800.0, 600.0)
                 .resizable(true),
         )
         .build()?;
