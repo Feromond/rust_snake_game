@@ -5,7 +5,9 @@ use ggez::{mint, Context, GameResult};
 use nalgebra as na;
 use rand::Rng;
 
-const SNAKE_SIZE: f32 = 50.0;
+const REFERENCE_WIDTH: f32 = 1200.0;
+const REFERENCE_HEIGHT: f32 = 800.0;
+const REFERENCE_SNAKE_SIZE: f32 = 50.0;
 const MOVE_TIME: f32 = 0.075; // Time in seconds between moves
 
 enum GameMode {
@@ -31,43 +33,62 @@ struct GameState {
     mode: GameMode,
     window_width: f32,
     window_height: f32,
+    scale: f32,
 }
 
 impl GameState {
     fn new(ctx: &mut Context) -> GameResult<GameState> {
         let (window_width, window_height) = GameState::get_window_size(ctx);
+        let scale = GameState::calculate_scale(window_width, window_height);
         let s = GameState {
             snake_body: vec![SnakeSegment {
-                pos: na::Point2::new(200.0, 200.0),
+                pos: na::Point2::new(200.0 * scale, 200.0 * scale),
             }],
             food: Food {
-                pos: GameState::get_random_food_position(window_width, window_height),
+                pos: GameState::get_random_food_position(window_width, window_height, scale),
             },
-            velocity: na::Vector2::new(SNAKE_SIZE, 0.0),
+            velocity: na::Vector2::new(REFERENCE_SNAKE_SIZE * scale, 0.0),
             last_update: 0.0,
             score: 0,
             high_score: 0,
             mode: GameMode::Menu,
             window_width,
             window_height,
+            scale,
         };
         Ok(s)
     }
 
-    fn get_random_food_position(window_width: f32, window_height: f32) -> na::Point2<f32> {
+    fn calculate_scale(window_width: f32, window_height: f32) -> f32 {
+        // Use the smaller scale factor to maintain consistent aspect ratio
+        let scale_width = window_width / REFERENCE_WIDTH;
+        let scale_height = window_height / REFERENCE_HEIGHT;
+        scale_width.min(scale_height)
+    }
+
+    fn get_random_food_position(
+        window_width: f32,
+        window_height: f32,
+        scale: f32,
+    ) -> na::Point2<f32> {
         let mut rng = rand::thread_rng();
         na::Point2::new(
-            (rng.gen_range(0..(window_width as u32 / SNAKE_SIZE as u32)) as f32) * SNAKE_SIZE,
-            (rng.gen_range(0..(window_height as u32 / SNAKE_SIZE as u32)) as f32) * SNAKE_SIZE,
+            (rng.gen_range(0..(window_width as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
+                as f32)
+                * (REFERENCE_SNAKE_SIZE * scale),
+            (rng.gen_range(0..(window_height as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
+                as f32)
+                * (REFERENCE_SNAKE_SIZE * scale),
         )
     }
 
     fn reset_game_state(&mut self) {
         self.snake_body = vec![SnakeSegment {
-            pos: na::Point2::new(200.0, 200.0),
+            pos: na::Point2::new(200.0 * self.scale, 200.0 * self.scale),
         }];
-        self.food.pos = GameState::get_random_food_position(self.window_width, self.window_height);
-        self.velocity = na::Vector2::new(SNAKE_SIZE, 0.0);
+        self.food.pos =
+            GameState::get_random_food_position(self.window_width, self.window_height, self.scale);
+        self.velocity = na::Vector2::new(REFERENCE_SNAKE_SIZE * self.scale, 0.0);
         self.score = 0;
     }
 
@@ -81,6 +102,16 @@ impl GameState {
         let (window_width, window_height) = GameState::get_window_size(ctx);
         self.window_width = window_width;
         self.window_height = window_height;
+        self.scale = GameState::calculate_scale(window_width, window_height);
+    }
+
+    fn scaled_rect(&self, pos: na::Point2<f32>) -> Rect {
+        Rect::new(
+            pos.x,
+            pos.y,
+            REFERENCE_SNAKE_SIZE * self.scale,
+            REFERENCE_SNAKE_SIZE * self.scale,
+        )
     }
 }
 
@@ -106,17 +137,25 @@ impl EventHandler for GameState {
                     }
                     self.snake_body[0].pos += self.velocity;
 
-                    // Collision detection with food
-                    if self.snake_body[0].pos == self.food.pos {
+                    // Check if snake ate the food
+                    if self.snake_body[0]
+                        .pos
+                        .coords
+                        .zip_map(&self.food.pos.coords, |a, b| (a - b).abs())
+                        .iter()
+                        .sum::<f32>()
+                        < REFERENCE_SNAKE_SIZE * self.scale
+                    {
                         // Eat the food and grow
                         self.snake_body.push(SnakeSegment { pos: last_pos });
                         self.score += 1; // Increase the score
 
-                        // Ensure the new food does not spawn on the snake
+                        // Generate new food position and ensure it doesn't overlap with the snake
                         loop {
                             self.food.pos = GameState::get_random_food_position(
                                 self.window_width,
                                 self.window_height,
+                                self.scale,
                             );
                             if !self
                                 .snake_body
@@ -128,18 +167,20 @@ impl EventHandler for GameState {
                         }
                     }
 
+                    // Check for collisions with self
                     for segment in &self.snake_body[1..] {
-                        if segment.pos == self.snake_body[0].pos {
+                        if self.snake_body[0].pos == segment.pos {
                             self.mode = GameMode::Menu;
                             break;
                         }
                     }
 
+                    // Check for out-of-bounds
                     let head_pos = self.snake_body[0].pos;
                     if head_pos.x < 0.0
                         || head_pos.y < 0.0
-                        || head_pos.x >= self.window_width
-                        || head_pos.y >= self.window_height
+                        || head_pos.x + REFERENCE_SNAKE_SIZE * self.scale > self.window_width
+                        || head_pos.y + REFERENCE_SNAKE_SIZE * self.scale > self.window_height
                     {
                         self.mode = GameMode::Menu;
                     }
@@ -179,25 +220,26 @@ impl EventHandler for GameState {
             GameMode::Playing => {
                 let mut mesh_builder = MeshBuilder::new();
 
-                // Draw each snake segment
+                // Draw the snake
                 for segment in &self.snake_body {
                     mesh_builder.rectangle(
                         DrawMode::fill(),
-                        Rect::new(segment.pos.x, segment.pos.y, SNAKE_SIZE, SNAKE_SIZE),
+                        self.scaled_rect(segment.pos),
                         Color::from_rgb(50, 150, 50),
                     )?;
                 }
-                // Draw food
+
+                // Draw the food
                 mesh_builder.rectangle(
                     DrawMode::fill(),
-                    Rect::new(self.food.pos.x, self.food.pos.y, SNAKE_SIZE, SNAKE_SIZE),
+                    self.scaled_rect(self.food.pos),
                     Color::from_rgb(255, 0, 0),
                 )?;
 
                 let mesh = Mesh::from_data(ctx, mesh_builder.build());
                 canvas.draw(&mesh, DrawParam::default());
 
-                // Create a Text object with the score
+                // Draw score
                 let mut score_text = Text::new(format!("Score: {}", self.score));
                 score_text.set_scale(graphics::PxScale::from(40.0));
                 canvas.draw(
@@ -232,19 +274,19 @@ impl EventHandler for GameState {
             }
             GameMode::Playing => match key.keycode {
                 Some(KeyCode::Right) | Some(KeyCode::D) if self.velocity.x == 0.0 => {
-                    self.velocity = na::Vector2::new(SNAKE_SIZE, 0.0);
+                    self.velocity = na::Vector2::new(REFERENCE_SNAKE_SIZE * self.scale, 0.0);
                 }
                 Some(KeyCode::Left) | Some(KeyCode::A) if self.velocity.x == 0.0 => {
-                    self.velocity = na::Vector2::new(-SNAKE_SIZE, 0.0);
+                    self.velocity = na::Vector2::new(-REFERENCE_SNAKE_SIZE * self.scale, 0.0);
                 }
                 Some(KeyCode::Up) | Some(KeyCode::W) if self.velocity.y == 0.0 => {
-                    self.velocity = na::Vector2::new(0.0, -SNAKE_SIZE);
+                    self.velocity = na::Vector2::new(0.0, -REFERENCE_SNAKE_SIZE * self.scale);
                 }
                 Some(KeyCode::Down) | Some(KeyCode::S) if self.velocity.y == 0.0 => {
-                    self.velocity = na::Vector2::new(0.0, SNAKE_SIZE);
+                    self.velocity = na::Vector2::new(0.0, REFERENCE_SNAKE_SIZE * self.scale);
                 }
                 Some(KeyCode::Escape) => {
-                        // Return to menu
+                    // Return to menu
                     self.mode = GameMode::Menu;
                 }
                 _ => {}
@@ -259,8 +301,8 @@ fn main() -> GameResult {
         .window_setup(ggez::conf::WindowSetup::default().title("Snake Game"))
         .window_mode(
             ggez::conf::WindowMode::default()
-                .dimensions(1300.0, 750.0)
-                .min_dimensions(1300.0, 750.0)
+                .dimensions(REFERENCE_WIDTH, REFERENCE_HEIGHT)
+                .min_dimensions(REFERENCE_WIDTH, REFERENCE_HEIGHT)
                 .resizable(true),
         )
         .build()?;
