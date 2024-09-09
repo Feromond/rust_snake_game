@@ -264,22 +264,22 @@ impl EventHandler for GameState {
         match self.mode {
             GameMode::Menu => {
                 let mut menu_text = Text::new(format!("Press Enter to Start\nESC to Exit\n"));
-                menu_text.set_scale(graphics::PxScale::from(60.0));
+                menu_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
                 canvas.draw(
                     &menu_text,
                     DrawParam::default().dest(mint::Point2 {
-                        x: self.boundary_width * 0.5 - 350.0 + self.offset_x,
+                        x: self.boundary_width * 0.5 - (350.0 * self.scale) + self.offset_x,
                         y: self.boundary_height * 0.4 + self.offset_y,
                     }),
                 );
                 let mut menu_high_score_text =
                     Text::new(format!("High Score: {}", self.high_score));
-                menu_high_score_text.set_scale(graphics::PxScale::from(60.0));
+                menu_high_score_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
                 canvas.draw(
                     &menu_high_score_text,
                     DrawParam::default()
                         .dest(mint::Point2 {
-                            x: self.boundary_width * 0.5 - 350.0 + self.offset_x,
+                            x: self.boundary_width * 0.5 - (350.0 * self.scale) + self.offset_x,
                             y: self.boundary_height * 0.55 + self.offset_y,
                         })
                         .color(Color::from_rgb(0, 255, 0)),
@@ -310,22 +310,22 @@ impl EventHandler for GameState {
 
                 // Draw score
                 let mut score_text = Text::new(format!("Score: {}", self.score));
-                score_text.set_scale(graphics::PxScale::from(40.0));
+                score_text.set_scale(graphics::PxScale::from(40.0 * self.scale));
                 canvas.draw(
                     &score_text,
                     DrawParam::default().dest(mint::Point2 {
-                        x: 10.0 + self.offset_x,
-                        y: 60.0 + self.offset_y,
+                        x: (10.0 * self.scale) + self.offset_x,
+                        y: (60.0 * self.scale) + self.offset_y,
                     }),
                 );
                 let mut high_score_text = Text::new(format!("High Score: {}", self.high_score));
-                high_score_text.set_scale(graphics::PxScale::from(40.0));
+                high_score_text.set_scale(graphics::PxScale::from(40.0 * self.scale));
                 canvas.draw(
                     &high_score_text,
                     DrawParam::default()
                         .dest(mint::Point2 {
-                            x: 10.0 + self.offset_x,
-                            y: 10.0 + self.offset_y,
+                            x: (10.0 * self.scale) + self.offset_x,
+                            y: (10.0 * self.scale) + self.offset_y,
                         })
                         .color(Color::from_rgb(0, 255, 0)),
                 );
@@ -377,7 +377,8 @@ fn main() -> GameResult {
             ggez::conf::WindowMode::default()
                 .dimensions(REFERENCE_WIDTH, REFERENCE_HEIGHT)
                 .min_dimensions(800.0, 600.0)
-                .resizable(true),
+                .resizable(true)
+                .transparent(true),
         )
         .build()?;
 
