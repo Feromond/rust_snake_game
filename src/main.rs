@@ -299,7 +299,7 @@ impl EventHandler for GameState {
 
         match self.mode {
             GameMode::Menu => {
-                let mut menu_text = Text::new(format!("Press Enter to Start\nESC to Exit\n"));
+                let mut menu_text = Text::new(format!("Press Enter to Start\n     ESC to Exit\n"));
                 menu_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
                 canvas.draw(
                     &menu_text,
@@ -367,8 +367,8 @@ impl EventHandler for GameState {
                         .color(hard_color),
                 );
 
-                let mut special_text = Text::new("4: SPECIAL");
-                special_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
+                let mut special_text = Text::new("4: Special");
+                special_text.set_scale(graphics::PxScale::from(50.0 * self.scale));
                 canvas.draw(
                     &special_text,
                     DrawParam::default()
@@ -386,7 +386,7 @@ impl EventHandler for GameState {
                     &menu_high_score_text,
                     DrawParam::default()
                         .dest(mint::Point2 {
-                            x: self.boundary_width * 0.5 - (350.0 * self.scale) + self.offset_x,
+                            x: self.boundary_width * 0.61 - (350.0 * self.scale) + self.offset_x,
                             y: self.boundary_height * 0.65 + self.offset_y,
                         })
                         .color(Color::from_rgb(0, 255, 0)),
