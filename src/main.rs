@@ -8,10 +8,17 @@ use rand::Rng;
 const REFERENCE_WIDTH: f32 = 1400.0;
 const REFERENCE_HEIGHT: f32 = 1050.0;
 const REFERENCE_SNAKE_SIZE: f32 = 50.0;
+
 // Controls snake speed.
 const EASY_MOVE_TIME: f32 = 0.12;
 const NORMAL_MOVE_TIME: f32 = 0.08;
 const HARD_MOVE_TIME: f32 = 0.065;
+
+// Special mode constants
+const SPECIAL_START_MOVE_TIME: f32 = 0.15; // Initial slower speed for Special
+const SPEED_UP_FACTOR: f32 = 0.95; // Multiplier for the speed increase
+const MIN_MOVE_TIME: f32 = 0.03; // Minimum move time to avoid it being too fast
+
 // Helps remove floating point errors
 const EPSILON: f32 = 0.01;
 
@@ -24,6 +31,7 @@ enum Difficulty {
     Easy,
     Normal,
     Hard,
+    Special,
 }
 
 struct Food {
@@ -145,6 +153,7 @@ impl GameState {
             Difficulty::Easy => EASY_MOVE_TIME,
             Difficulty::Normal => NORMAL_MOVE_TIME,
             Difficulty::Hard => HARD_MOVE_TIME,
+            Difficulty::Special => SPECIAL_START_MOVE_TIME,
         };
     }
 
@@ -238,6 +247,16 @@ impl EventHandler for GameState {
                         self.snake_body.push(SnakeSegment { pos: last_pos });
                         self.score += 1;
 
+                        // If in Special difficulty, increase speed
+                        if let Difficulty::Special = self.difficulty {
+                            // Reduce the move time by the speed-up factor
+                            self.move_time *= SPEED_UP_FACTOR;
+                            // Ensure move_time doesn't go below a certain minimum
+                            if self.move_time < MIN_MOVE_TIME {
+                                self.move_time = MIN_MOVE_TIME;
+                            }
+                        }
+
                         // Generate new food position and ensure it doesn't overlap with the snake
                         loop {
                             self.food.pos = GameState::get_random_food_position(
@@ -305,6 +324,11 @@ impl EventHandler for GameState {
                 } else {
                     Color::from_rgb(255, 200, 200) // Light red for unselected
                 };
+                let special_color = if let Difficulty::Special = self.difficulty {
+                    Color::from_rgb(255, 100, 255) // Purple for selected
+                } else {
+                    Color::from_rgb(255, 200, 255) // Light purple for unselected
+                };
 
                 let mut easy_text = Text::new("1: Easy");
                 easy_text.set_scale(graphics::PxScale::from(50.0 * self.scale));
@@ -342,6 +366,18 @@ impl EventHandler for GameState {
                         .color(hard_color),
                 );
 
+                let mut special_text = Text::new("4: SPECIAL");
+                special_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
+                canvas.draw(
+                    &special_text,
+                    DrawParam::default()
+                        .dest(mint::Point2 {
+                            x: self.boundary_width * 0.65 - (350.0 * self.scale) + self.offset_x,
+                            y: self.boundary_height * 0.57 + self.offset_y,
+                        })
+                        .color(special_color),
+                );
+
                 let mut menu_high_score_text =
                     Text::new(format!("High Score: {}", self.high_score));
                 menu_high_score_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
@@ -350,7 +386,7 @@ impl EventHandler for GameState {
                     DrawParam::default()
                         .dest(mint::Point2 {
                             x: self.boundary_width * 0.5 - (350.0 * self.scale) + self.offset_x,
-                            y: self.boundary_height * 0.6 + self.offset_y,
+                            y: self.boundary_height * 0.65 + self.offset_y,
                         })
                         .color(Color::from_rgb(0, 255, 0)),
                 )
@@ -424,6 +460,9 @@ impl EventHandler for GameState {
                 } else if let Some(KeyCode::Key3) = key.keycode {
                     // Set difficulty to Hard
                     self.difficulty = Difficulty::Hard;
+                } else if let Some(KeyCode::Key4) = key.keycode {
+                    // Set difficulty to Special
+                    self.difficulty = Difficulty::Special;
                 }
             }
             GameMode::Playing => match key.keycode {
