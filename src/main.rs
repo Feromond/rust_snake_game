@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use ggez::event::{self, EventHandler};
 use ggez::graphics::{self, Canvas, Color, DrawMode, DrawParam, Mesh, MeshBuilder, Rect, Text};
 use ggez::input::keyboard::{KeyCode, KeyInput};
