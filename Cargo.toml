@@ -20,7 +20,7 @@ winresource = "0.1.17"
 
 
 [package.metadata.bundle]
-name = "rust_snake_game"
+name = "Rust Snake Game"
 identifier = "io.github.Feromond.rust_snake_game"
 description = "A very simple primative game of snake built in rust"
 icon = ["./snake.png"]
