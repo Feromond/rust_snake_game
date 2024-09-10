@@ -8,11 +8,19 @@ use rand::Rng;
 const REFERENCE_WIDTH: f32 = 1400.0;
 const REFERENCE_HEIGHT: f32 = 1050.0;
 const REFERENCE_SNAKE_SIZE: f32 = 50.0;
-const MOVE_TIME: f32 = 0.075; // Time in seconds between moves
+const EASY_MOVE_TIME: f32 = 0.12;
+const NORMAL_MOVE_TIME: f32 = 0.08;
+const HARD_MOVE_TIME: f32 = 0.065;
 
 enum GameMode {
     Menu,
     Playing,
+}
+
+enum Difficulty {
+    Easy,
+    Normal,
+    Hard,
 }
 
 struct Food {
@@ -39,6 +47,8 @@ struct GameState {
     scaled_snake_size: f32,
     offset_x: f32, // Offset to center the game in case of extra window space
     offset_y: f32,
+    difficulty: Difficulty,
+    move_time: f32, // Store the current move time based on difficulty
 }
 
 impl GameState {
@@ -74,6 +84,8 @@ impl GameState {
             scaled_snake_size,
             offset_x,
             offset_y,
+            difficulty: Difficulty::Normal, // Set default difficulty to Normal
+            move_time: NORMAL_MOVE_TIME,    // Set default move time to Normal speed
         };
         Ok(s)
     }
@@ -124,6 +136,13 @@ impl GameState {
         );
         self.velocity = na::Vector2::new(self.scaled_snake_size, 0.0);
         self.score = 0;
+
+        // Set move_time based on the selected difficulty
+        self.move_time = match self.difficulty {
+            Difficulty::Easy => EASY_MOVE_TIME,
+            Difficulty::Normal => NORMAL_MOVE_TIME,
+            Difficulty::Hard => HARD_MOVE_TIME,
+        };
     }
 
     fn get_window_size(ctx: &mut Context) -> (f32, f32) {
@@ -199,7 +218,7 @@ impl EventHandler for GameState {
             }
             GameMode::Playing => {
                 self.last_update += ctx.time.delta().as_secs_f32();
-                if self.last_update >= MOVE_TIME {
+                if self.last_update >= self.move_time {
                     self.last_update = 0.0;
                     // Clone the position of the last segment
                     let last_pos = self.snake_body.last().unwrap().pos;
@@ -269,9 +288,63 @@ impl EventHandler for GameState {
                     &menu_text,
                     DrawParam::default().dest(mint::Point2 {
                         x: self.boundary_width * 0.5 - (350.0 * self.scale) + self.offset_x,
-                        y: self.boundary_height * 0.4 + self.offset_y,
+                        y: self.boundary_height * 0.35 + self.offset_y,
                     }),
                 );
+
+                // Draw difficulty text separately for each difficulty level with different colors
+                let easy_color = if let Difficulty::Easy = self.difficulty {
+                    Color::from_rgb(0, 255, 0) // Green for selected
+                } else {
+                    Color::from_rgb(180, 255, 200) // Light green for unselected
+                };
+                let normal_color = if let Difficulty::Normal = self.difficulty {
+                    Color::from_rgb(255, 255, 0) // Yellow for selected
+                } else {
+                    Color::from_rgb(255, 255, 200) // Light yellow for unselected
+                };
+                let hard_color = if let Difficulty::Hard = self.difficulty {
+                    Color::from_rgb(255, 0, 0) // Red for selected
+                } else {
+                    Color::from_rgb(255, 200, 200) // Light red for unselected
+                };
+
+                let mut easy_text = Text::new("1: Easy");
+                easy_text.set_scale(graphics::PxScale::from(50.0 * self.scale));
+                canvas.draw(
+                    &easy_text,
+                    DrawParam::default()
+                        .dest(mint::Point2 {
+                            x: self.boundary_width * 0.5 - (350.0 * self.scale) + self.offset_x,
+                            y: self.boundary_height * 0.50 + self.offset_y,
+                        })
+                        .color(easy_color),
+                );
+
+                let mut normal_text = Text::new("2: Normal");
+                normal_text.set_scale(graphics::PxScale::from(50.0 * self.scale));
+                canvas.draw(
+                    &normal_text,
+                    DrawParam::default()
+                        .dest(mint::Point2 {
+                            x: self.boundary_width * 0.67 - (350.0 * self.scale) + self.offset_x,
+                            y: self.boundary_height * 0.50 + self.offset_y,
+                        })
+                        .color(normal_color),
+                );
+
+                let mut hard_text = Text::new("3: Hard");
+                hard_text.set_scale(graphics::PxScale::from(50.0 * self.scale));
+                canvas.draw(
+                    &hard_text,
+                    DrawParam::default()
+                        .dest(mint::Point2 {
+                            x: self.boundary_width * 0.88 - (350.0 * self.scale) + self.offset_x,
+                            y: self.boundary_height * 0.50 + self.offset_y,
+                        })
+                        .color(hard_color),
+                );
+
                 let mut menu_high_score_text =
                     Text::new(format!("High Score: {}", self.high_score));
                 menu_high_score_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
@@ -280,7 +353,7 @@ impl EventHandler for GameState {
                     DrawParam::default()
                         .dest(mint::Point2 {
                             x: self.boundary_width * 0.5 - (350.0 * self.scale) + self.offset_x,
-                            y: self.boundary_height * 0.55 + self.offset_y,
+                            y: self.boundary_height * 0.6 + self.offset_y,
                         })
                         .color(Color::from_rgb(0, 255, 0)),
                 )
@@ -345,6 +418,15 @@ impl EventHandler for GameState {
                     self.reset_game_state();
                 } else if let Some(KeyCode::Escape) = key.keycode {
                     ctx.request_quit();
+                } else if let Some(KeyCode::Key1) = key.keycode {
+                    // Set difficulty to Easy
+                    self.difficulty = Difficulty::Easy;
+                } else if let Some(KeyCode::Key2) = key.keycode {
+                    // Set difficulty to Normal
+                    self.difficulty = Difficulty::Normal;
+                } else if let Some(KeyCode::Key3) = key.keycode {
+                    // Set difficulty to Hard
+                    self.difficulty = Difficulty::Hard;
                 }
             }
             GameMode::Playing => match key.keycode {
