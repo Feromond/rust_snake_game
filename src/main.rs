@@ -8,9 +8,12 @@ use rand::Rng;
 const REFERENCE_WIDTH: f32 = 1400.0;
 const REFERENCE_HEIGHT: f32 = 1050.0;
 const REFERENCE_SNAKE_SIZE: f32 = 50.0;
+// Controls snake speed.
 const EASY_MOVE_TIME: f32 = 0.12;
 const NORMAL_MOVE_TIME: f32 = 0.08;
 const HARD_MOVE_TIME: f32 = 0.065;
+// Helps remove floating point errors
+const EPSILON: f32 = 0.01;
 
 enum GameMode {
     Menu,
@@ -192,9 +195,6 @@ impl GameState {
     fn check_border_collisions(&self) -> bool {
         let head_pos = self.snake_body[0].pos;
 
-        // Adjust collision check to be within the locked 4:3 boundary
-        const EPSILON: f32 = 0.01;
-
         if head_pos.x < 0.0 - EPSILON
             || head_pos.y < 0.0 - EPSILON
             || head_pos.x + self.scaled_snake_size > self.boundary_width + EPSILON
@@ -228,14 +228,11 @@ impl EventHandler for GameState {
                     }
                     self.snake_body[0].pos += self.velocity;
 
-                    // Check if snake ate the food
-                    if self.snake_body[0]
-                        .pos
-                        .coords
-                        .zip_map(&self.food.pos.coords, |a, b| (a - b).abs())
-                        .iter()
-                        .sum::<f32>()
-                        < self.scaled_snake_size
+                    // Check if snake ate the food with adjusted collision detection
+                    let dist_x = (self.snake_body[0].pos.x - self.food.pos.x).abs();
+                    let dist_y = (self.snake_body[0].pos.y - self.food.pos.y).abs();
+                    if dist_x < self.scaled_snake_size - EPSILON
+                        && dist_y < self.scaled_snake_size - EPSILON
                     {
                         // Eat the food and grow
                         self.snake_body.push(SnakeSegment { pos: last_pos });
