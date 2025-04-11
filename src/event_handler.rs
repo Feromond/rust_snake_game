@@ -63,6 +63,12 @@ impl EventHandler for GameState {
                 self.last_update += ctx.time.delta().as_secs_f32();
                 if self.last_update >= self.move_time {
                     self.last_update = 0.0;
+
+                    // Check for and apply buffered input
+                    if let Some(new_velocity) = self.next_velocity.take() {
+                        self.velocity = new_velocity;
+                    }
+
                     // Clone the position of the last segment
                     let last_pos = self.snake_body.last().unwrap().pos;
                     // Movement for snake
@@ -387,30 +393,32 @@ impl EventHandler for GameState {
                     self.menu_change_sound.play(ctx)?;
                 }
             }
-            GameMode::Playing => match key.keycode {
-                Some(KeyCode::Right) | Some(KeyCode::D) if self.velocity.x == 0.0 => {
-                    self.velocity = na::Vector2::new(self.scaled_snake_size, 0.0);
-                }
-                Some(KeyCode::Left) | Some(KeyCode::A) if self.velocity.x == 0.0 => {
-                    self.velocity = na::Vector2::new(-self.scaled_snake_size, 0.0);
-                }
-                Some(KeyCode::Up) | Some(KeyCode::W) if self.velocity.y == 0.0 => {
-                    self.velocity = na::Vector2::new(0.0, -self.scaled_snake_size);
-                }
-                Some(KeyCode::Down) | Some(KeyCode::S) if self.velocity.y == 0.0 => {
-                    self.velocity = na::Vector2::new(0.0, self.scaled_snake_size);
-                }
-                Some(KeyCode::Escape) => {
-                    self.mode = GameMode::Menu;
-                    // Reset pitch when escaping to menu
-                    self.game_music.set_pitch(1.0);
-                    // Stop special music if playing
-                    if self.special_mode_music.playing() {
-                        self.special_mode_music.stop(ctx)?;
+            GameMode::Playing => {
+                let new_velocity = match key.keycode {
+                    Some(KeyCode::Right) | Some(KeyCode::D) => na::Vector2::new(self.scaled_snake_size, 0.0),
+                    Some(KeyCode::Left) | Some(KeyCode::A) => na::Vector2::new(-self.scaled_snake_size, 0.0),
+                    Some(KeyCode::Up) | Some(KeyCode::W) => na::Vector2::new(0.0, -self.scaled_snake_size),
+                    Some(KeyCode::Down) | Some(KeyCode::S) => na::Vector2::new(0.0, self.scaled_snake_size),
+                    Some(KeyCode::Escape) => {
+                        self.mode = GameMode::Menu;
+                        // Reset pitch when escaping to menu
+                        self.game_music.set_pitch(1.0);
+                        // Stop special music if playing
+                        if self.special_mode_music.playing() {
+                            self.special_mode_music.stop(ctx)?;
+                        }
+                        return Ok(()); // Return early as we're switching mode
                     }
+                    _ => return Ok(()), // Ignore other keys
+                };
+
+                // Prevent immediate reversal
+                // Check against current velocity OR buffered velocity if it exists
+                let current_check_velocity = self.next_velocity.unwrap_or(self.velocity);
+                if new_velocity != -current_check_velocity {
+                    self.next_velocity = Some(new_velocity);
                 }
-                _ => {}
-            },
+            }
         }
         Ok(())
     }

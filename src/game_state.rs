@@ -28,6 +28,7 @@ pub struct GameState {
     pub offset_y: f32,
     pub difficulty: Difficulty,
     pub move_time: f32, // Store the current move time based on difficulty
+    pub next_velocity: Option<na::Vector2<f32>>, // Buffer for the next move input
     // Audio fields
     pub menu_music: Source,
     pub game_music: Source,
@@ -107,6 +108,7 @@ impl GameState {
             offset_y,
             difficulty: Difficulty::Normal, // Set default difficulty to Normal
             move_time: NORMAL_MOVE_TIME,    // Set default move time to Normal speed
+            next_velocity: None,
             // Initialize audio fields
             menu_music,
             game_music,
