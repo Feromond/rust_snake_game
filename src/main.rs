@@ -70,6 +70,7 @@ struct GameState {
     game_over_sound: Source,
     menu_change_sound: Source,
     music_volume: f32,
+    music_speed: f32, // Add music speed field
 }
 
 impl GameState {
@@ -135,6 +136,7 @@ impl GameState {
             game_over_sound,
             menu_change_sound,
             music_volume: initial_volume,
+            music_speed: 1.0,
         };
         Ok(s)
     }
@@ -192,6 +194,13 @@ impl GameState {
             Difficulty::Normal => NORMAL_MOVE_TIME,
             Difficulty::Hard => HARD_MOVE_TIME,
             Difficulty::Special => SPECIAL_START_MOVE_TIME,
+        };
+        // Set initial music speed based on difficulty
+        self.music_speed = match self.difficulty {
+            Difficulty::Easy => 0.8,
+            Difficulty::Normal => 1.0,
+            Difficulty::Hard => 1.2,
+            Difficulty::Special => 1.0,
         };
     }
 
@@ -263,6 +272,7 @@ impl EventHandler for GameState {
                 }
                 // Stop game music if it's playing when returning to menu
                 if self.game_music.playing() {
+                    self.game_music.set_pitch(1.0); // Reset pitch before stopping
                     self.game_music.stop(ctx)?;
                 }
                 // Start menu music if it's not playing
@@ -277,6 +287,7 @@ impl EventHandler for GameState {
                 }
                 // Start game music if it's not playing
                 if !self.game_music.playing() {
+                    self.game_music.set_pitch(self.music_speed); // Set pitch based on speed
                     self.game_music.play(ctx)?;
                 }
 
@@ -338,6 +349,7 @@ impl EventHandler for GameState {
                             // Play game over sound
                             self.game_over_sound.play(ctx)?;
                             // Stop game music on game over
+                            self.game_music.set_pitch(1.0); // Reset pitch
                             self.game_music.stop(ctx)?;
                             break;
                         }
@@ -349,6 +361,7 @@ impl EventHandler for GameState {
                         // Play game over sound
                         self.game_over_sound.play(ctx)?;
                         // Stop game music on game over
+                        self.game_music.set_pitch(1.0); // Reset pitch
                         self.game_music.stop(ctx)?;
                     }
                 }
@@ -612,6 +625,8 @@ impl EventHandler for GameState {
                 }
                 Some(KeyCode::Escape) => {
                     self.mode = GameMode::Menu;
+                    // Reset pitch when escaping to menu
+                    self.game_music.set_pitch(1.0);
                 }
                 _ => {}
             },
