@@ -1,6 +1,6 @@
 [package]
 name = "rust_snake_game"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Jacob Mish <JacobPMish@gmail.com>"]
 description = "A very simple primative game of snake built in rust"
@@ -12,10 +12,11 @@ path = "src/main.rs"
 
 [dependencies]
 ggez = "0.9.3"
-nalgebra = "0.32.3"
+nalgebra = "0.33.0"
 rand = "0.8.5"
 
 [build-dependencies]
+fs_extra = "1.3.0"
 winresource = "0.1.17"
 
 
@@ -24,3 +25,4 @@ name = "Rust Snake Game"
 identifier = "io.github.Feromond.rust_snake_game"
 description = "A very simple primative game of snake built in rust"
 icon = ["./snake.png"]
+resources = ["resources/"]
