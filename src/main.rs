@@ -69,6 +69,7 @@ struct GameState {
     eat_sound: Source,
     game_over_sound: Source,
     menu_change_sound: Source,
+    music_volume: f32,
 }
 
 impl GameState {
@@ -87,13 +88,18 @@ impl GameState {
         // Load audio files using the determined prefix
         let mut menu_music = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/menu_music.mp3"))?;
         let mut game_music = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/game_music.wav"))?;
-        let eat_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/eat.ogg"))?;
-        let game_over_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/game_over.wav"))?;
+        let mut eat_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/eat.ogg"))?;
+        let mut game_over_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/game_over.wav"))?;
         let menu_change_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/menu_option_change.wav"))?;
 
         // Set music to loop
         menu_music.set_repeat(true);
         game_music.set_repeat(true);
+        let initial_volume = 0.8;
+        menu_music.set_volume(initial_volume);
+        game_music.set_volume(initial_volume);
+        eat_sound.set_volume(initial_volume);
+        game_over_sound.set_volume(initial_volume);
         // Play menu music initially
         menu_music.play(ctx)?;
 
@@ -128,6 +134,7 @@ impl GameState {
             eat_sound,
             game_over_sound,
             menu_change_sound,
+            music_volume: initial_volume,
         };
         Ok(s)
     }
@@ -436,6 +443,21 @@ impl EventHandler for GameState {
                         .color(special_color),
                 );
 
+                let mut volume_text = Text::new(format!(
+                    "Volume: {:.0}% (+/- to change)",
+                    self.music_volume * 100.0
+                ));
+                volume_text.set_scale(graphics::PxScale::from(40.0 * self.scale));
+                canvas.draw(
+                    &volume_text,
+                    DrawParam::default()
+                        .dest(mint::Point2 {
+                            x: self.boundary_width * 0.5 - (300.0 * self.scale) + self.offset_x,
+                            y: self.boundary_height * 0.75 + self.offset_y,
+                        })
+                        .color(Color::WHITE),
+                );
+
                 let mut menu_high_score_text =
                     Text::new(format!("High Score: {}", self.high_score));
                 menu_high_score_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
@@ -505,6 +527,7 @@ impl EventHandler for GameState {
             GameMode::Menu => {
                 // Play sound on any relevant key press in the menu
                 let mut play_sound = false;
+                let mut volume_changed = false;
 
                 if let Some(keycode) = key.keycode {
                     match keycode {
@@ -546,6 +569,16 @@ impl EventHandler for GameState {
                                 play_sound = true;
                              }
                         }
+                        KeyCode::Equals | KeyCode::Plus => {
+                            // Increase volume
+                            self.music_volume = (self.music_volume + 0.1).min(1.0);
+                            volume_changed = true;
+                        }
+                        KeyCode::Minus => {
+                            // Decrease volume
+                            self.music_volume = (self.music_volume - 0.1).max(0.0);
+                            volume_changed = true;
+                        }
                         _ => {} // Ignore other keys
                     }
                 }
@@ -553,6 +586,15 @@ impl EventHandler for GameState {
                     // Stop the sound first to allow retriggering if pressed quickly
                     self.menu_change_sound.stop(ctx)?;
                     self.menu_change_sound.play(ctx)?;
+                }
+                if volume_changed {
+                    self.menu_music.set_volume(self.music_volume);
+                    self.game_music.set_volume(self.music_volume);
+                    self.eat_sound.set_volume(self.music_volume);
+                    self.game_over_sound.set_volume(self.music_volume);
+                    self.menu_change_sound.stop(ctx)?;
+                    self.menu_change_sound.play(ctx)?;
+
                 }
             }
             GameMode::Playing => match key.keycode {
