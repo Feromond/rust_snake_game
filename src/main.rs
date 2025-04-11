@@ -5,6 +5,7 @@ use ggez::input::keyboard::{KeyCode, KeyInput};
 use ggez::{mint, Context, GameResult};
 use nalgebra::{self as na};
 use rand::Rng;
+use rand::rngs::ThreadRng;
 use ggez::audio::{self, SoundSource, Source};
 use std::path::PathBuf;
 
@@ -170,12 +171,12 @@ impl GameState {
         boundary_height: f32,
         scale: f32,
     ) -> na::Point2<f32> {
-        let mut rng = rand::thread_rng();
+        let mut rng: ThreadRng = rand::rng();
         na::Point2::new(
-            (rng.gen_range(0..(boundary_width as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
+            (rng.random_range(0..(boundary_width as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
                 as f32)
                 * (REFERENCE_SNAKE_SIZE * scale),
-            (rng.gen_range(0..(boundary_height as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
+            (rng.random_range(0..(boundary_height as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
                 as f32)
                 * (REFERENCE_SNAKE_SIZE * scale),
         )
