@@ -9,6 +9,9 @@ use ggez::{
 use nalgebra as na;
 use rand::rngs::ThreadRng;
 use rand::Rng;
+use std::fs;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
 pub struct GameState {
     pub snake_body: Vec<SnakeSegment>,
@@ -38,10 +41,32 @@ pub struct GameState {
     pub music_volume: f32,
     pub music_speed: f32,
     pub special_mode_music: Source,
+    pub high_score_path: PathBuf,
+}
+
+fn load_high_score(path: &PathBuf) -> i32 {
+    if let Ok(mut file) = fs::File::open(path) {
+        let mut contents = String::new();
+        if file.read_to_string(&mut contents).is_ok() {
+            if let Ok(score) = contents.trim().parse::<i32>() {
+                return score;
+            }
+        }
+    }
+    0 // Return 0 if file doesn't exist, can't be read, or content is invalid
 }
 
 impl GameState {
     pub fn new(ctx: &mut Context, is_bundle: bool) -> GameResult<GameState> {
+        // Determine user data directory
+        let mut data_dir = PathBuf::from(ctx.fs.user_data_dir());
+        data_dir.push("RustSnakeGame");
+        if let Err(e) = fs::create_dir_all(&data_dir) {
+            eprintln!("Failed to create data directory: {}", e);
+        }
+        let high_score_path = data_dir.join("highscore.txt");
+        let high_score = load_high_score(&high_score_path);
+
         let (window_width, window_height) = GameState::get_window_size(ctx);
         let (boundary_width, boundary_height) =
             GameState::calculate_locked_boundary(window_width, window_height);
@@ -96,7 +121,7 @@ impl GameState {
             velocity: na::Vector2::new(scaled_snake_size, 0.0),
             last_update: 0.0,
             score: 0,
-            high_score: 0,
+            high_score,
             mode: GameMode::Menu,
             window_width,
             window_height,
@@ -118,8 +143,22 @@ impl GameState {
             music_volume: INITIAL_MUSIC_VOLUME,
             music_speed: 1.0,
             special_mode_music,
+            high_score_path,
         };
         Ok(s)
+    }
+
+    pub fn save_high_score(&self) {
+        match fs::File::create(&self.high_score_path) {
+            Ok(mut file) => {
+                if let Err(e) = write!(file, "{}", self.high_score) {
+                    eprintln!("Failed to write high score to file: {}", e);
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to open high score file for writing: {}", e);
+            }
+        }
     }
 
     pub fn calculate_locked_boundary(window_width: f32, window_height: f32) -> (f32, f32) {

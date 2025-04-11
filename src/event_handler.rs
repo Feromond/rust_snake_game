@@ -19,6 +19,7 @@ impl EventHandler for GameState {
             GameMode::Menu => {
                 if self.score > self.high_score {
                     self.high_score = self.score;
+                    self.save_high_score();
                 }
                 // Stop game music if it's playing when returning to menu
                 if self.game_music.playing() {
