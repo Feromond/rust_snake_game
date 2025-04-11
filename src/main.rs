@@ -70,7 +70,8 @@ struct GameState {
     game_over_sound: Source,
     menu_change_sound: Source,
     music_volume: f32,
-    music_speed: f32, // Add music speed field
+    music_speed: f32,
+    special_mode_music: Source, 
 }
 
 impl GameState {
@@ -92,15 +93,18 @@ impl GameState {
         let mut eat_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/eat.ogg"))?;
         let mut game_over_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/game_over.wav"))?;
         let menu_change_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/menu_option_change.wav"))?;
+        let mut special_mode_music = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/special_mode_music.mp3"))?;
 
         // Set music to loop
         menu_music.set_repeat(true);
         game_music.set_repeat(true);
+        special_mode_music.set_repeat(true);
         let initial_volume = 0.8;
         menu_music.set_volume(initial_volume);
         game_music.set_volume(initial_volume);
         eat_sound.set_volume(initial_volume);
         game_over_sound.set_volume(initial_volume);
+        special_mode_music.set_volume(initial_volume);
         // Play menu music initially
         menu_music.play(ctx)?;
 
@@ -137,6 +141,7 @@ impl GameState {
             menu_change_sound,
             music_volume: initial_volume,
             music_speed: 1.0,
+            special_mode_music,
         };
         Ok(s)
     }
@@ -275,6 +280,10 @@ impl EventHandler for GameState {
                     self.game_music.set_pitch(1.0); // Reset pitch before stopping
                     self.game_music.stop(ctx)?;
                 }
+                // Stop special music if it's playing
+                if self.special_mode_music.playing() {
+                    self.special_mode_music.stop(ctx)?;
+                }
                 // Start menu music if it's not playing
                 if !self.menu_music.playing() {
                     self.menu_music.play(ctx)?;
@@ -285,10 +294,25 @@ impl EventHandler for GameState {
                 if self.menu_music.playing() {
                     self.menu_music.stop(ctx)?;
                 }
-                // Start game music if it's not playing
-                if !self.game_music.playing() {
-                    self.game_music.set_pitch(self.music_speed); // Set pitch based on speed
-                    self.game_music.play(ctx)?;
+                // Start appropriate game music if not playing
+                if !self.game_music.playing() && !self.special_mode_music.playing() {
+                    match self.difficulty {
+                        Difficulty::Special => {
+                            // Stop regular game music if playing (safety check)
+                             if self.game_music.playing() {
+                                self.game_music.stop(ctx)?;
+                             }
+                            self.special_mode_music.play(ctx)?;
+                        }
+                        _ => {
+                            // Stop special music if playing (safety check)
+                            if self.special_mode_music.playing() {
+                                self.special_mode_music.stop(ctx)?;
+                            }
+                            self.game_music.set_pitch(self.music_speed); // This doesnt seem to work ;( 
+                            self.game_music.play(ctx)?;
+                        }
+                    }
                 }
 
                 self.last_update += ctx.time.delta().as_secs_f32();
@@ -351,6 +375,10 @@ impl EventHandler for GameState {
                             // Stop game music on game over
                             self.game_music.set_pitch(1.0); // Reset pitch
                             self.game_music.stop(ctx)?;
+                            // Stop special music if playing
+                            if self.special_mode_music.playing() {
+                                self.special_mode_music.stop(ctx)?;
+                            }
                             break;
                         }
                     }
@@ -363,6 +391,10 @@ impl EventHandler for GameState {
                         // Stop game music on game over
                         self.game_music.set_pitch(1.0); // Reset pitch
                         self.game_music.stop(ctx)?;
+                        // Stop special music if playing
+                        if self.special_mode_music.playing() {
+                            self.special_mode_music.stop(ctx)?;
+                        }
                     }
                 }
             }
@@ -605,9 +637,9 @@ impl EventHandler for GameState {
                     self.game_music.set_volume(self.music_volume);
                     self.eat_sound.set_volume(self.music_volume);
                     self.game_over_sound.set_volume(self.music_volume);
+                    self.special_mode_music.set_volume(self.music_volume);
                     self.menu_change_sound.stop(ctx)?;
                     self.menu_change_sound.play(ctx)?;
-
                 }
             }
             GameMode::Playing => match key.keycode {
@@ -627,6 +659,10 @@ impl EventHandler for GameState {
                     self.mode = GameMode::Menu;
                     // Reset pitch when escaping to menu
                     self.game_music.set_pitch(1.0);
+                    // Stop special music if playing
+                    if self.special_mode_music.playing() {
+                        self.special_mode_music.stop(ctx)?;
+                    }
                 }
                 _ => {}
             },
