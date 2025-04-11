@@ -5,6 +5,9 @@ use ggez::input::keyboard::{KeyCode, KeyInput};
 use ggez::{mint, Context, GameResult};
 use nalgebra::{self as na};
 use rand::Rng;
+use rand::rngs::ThreadRng;
+use ggez::audio::{self, SoundSource, Source};
+use std::path::PathBuf;
 
 const REFERENCE_WIDTH: f32 = 1400.0;
 const REFERENCE_HEIGHT: f32 = 1050.0;
@@ -61,10 +64,19 @@ struct GameState {
     offset_y: f32,
     difficulty: Difficulty,
     move_time: f32, // Store the current move time based on difficulty
+    // Audio fields
+    menu_music: Source,
+    game_music: Source,
+    eat_sound: Source,
+    game_over_sound: Source,
+    menu_change_sound: Source,
+    music_volume: f32,
+    music_speed: f32,
+    special_mode_music: Source, 
 }
 
 impl GameState {
-    fn new(ctx: &mut Context) -> GameResult<GameState> {
+    fn new(ctx: &mut Context, is_bundle: bool) -> GameResult<GameState> {
         let (window_width, window_height) = GameState::get_window_size(ctx);
         let (boundary_width, boundary_height) =
             GameState::calculate_locked_boundary(window_width, window_height);
@@ -72,6 +84,30 @@ impl GameState {
         let scaled_snake_size = REFERENCE_SNAKE_SIZE * scale;
         let offset_x = (window_width - boundary_width) / 2.0;
         let offset_y = (window_height - boundary_height) / 2.0;
+
+        // Determine path prefix based on context
+        let resource_prefix = if is_bundle { "/resources" } else { "" };
+
+        // Load audio files using the determined prefix
+        let mut menu_music = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/menu_music.mp3"))?;
+        let mut game_music = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/game_music.wav"))?;
+        let mut eat_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/eat.ogg"))?;
+        let mut game_over_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/game_over.wav"))?;
+        let menu_change_sound = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/menu_option_change.wav"))?;
+        let mut special_mode_music = audio::Source::new(ctx, &format!("{}{}", resource_prefix, "/special_mode_music.mp3"))?;
+
+        // Set music to loop
+        menu_music.set_repeat(true);
+        game_music.set_repeat(true);
+        special_mode_music.set_repeat(true);
+        let initial_volume = 0.8;
+        menu_music.set_volume(initial_volume);
+        game_music.set_volume(initial_volume);
+        eat_sound.set_volume(initial_volume);
+        game_over_sound.set_volume(initial_volume);
+        special_mode_music.set_volume(initial_volume);
+        // Play menu music initially
+        menu_music.play(ctx)?;
 
         let s = GameState {
             snake_body: vec![SnakeSegment {
@@ -98,6 +134,15 @@ impl GameState {
             offset_y,
             difficulty: Difficulty::Normal, // Set default difficulty to Normal
             move_time: NORMAL_MOVE_TIME,    // Set default move time to Normal speed
+            // Initialize audio fields
+            menu_music,
+            game_music,
+            eat_sound,
+            game_over_sound,
+            menu_change_sound,
+            music_volume: initial_volume,
+            music_speed: 1.0,
+            special_mode_music,
         };
         Ok(s)
     }
@@ -126,12 +171,12 @@ impl GameState {
         boundary_height: f32,
         scale: f32,
     ) -> na::Point2<f32> {
-        let mut rng = rand::thread_rng();
+        let mut rng: ThreadRng = rand::rng();
         na::Point2::new(
-            (rng.gen_range(0..(boundary_width as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
+            (rng.random_range(0..(boundary_width as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
                 as f32)
                 * (REFERENCE_SNAKE_SIZE * scale),
-            (rng.gen_range(0..(boundary_height as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
+            (rng.random_range(0..(boundary_height as u32 / (REFERENCE_SNAKE_SIZE * scale) as u32))
                 as f32)
                 * (REFERENCE_SNAKE_SIZE * scale),
         )
@@ -155,6 +200,13 @@ impl GameState {
             Difficulty::Normal => NORMAL_MOVE_TIME,
             Difficulty::Hard => HARD_MOVE_TIME,
             Difficulty::Special => SPECIAL_START_MOVE_TIME,
+        };
+        // Set initial music speed based on difficulty
+        self.music_speed = match self.difficulty {
+            Difficulty::Easy => 0.8,
+            Difficulty::Normal => 1.0,
+            Difficulty::Hard => 1.2,
+            Difficulty::Special => 1.0,
         };
     }
 
@@ -224,9 +276,46 @@ impl EventHandler for GameState {
                 if self.score > self.high_score {
                     self.high_score = self.score;
                 }
-                // No game updates in menu mode (I can consider placing some animations here maybe??)
+                // Stop game music if it's playing when returning to menu
+                if self.game_music.playing() {
+                    self.game_music.set_pitch(1.0); // Reset pitch before stopping
+                    self.game_music.stop(ctx)?;
+                }
+                // Stop special music if it's playing
+                if self.special_mode_music.playing() {
+                    self.special_mode_music.stop(ctx)?;
+                }
+                // Start menu music if it's not playing
+                if !self.menu_music.playing() {
+                    self.menu_music.play(ctx)?;
+                }
             }
             GameMode::Playing => {
+                // Stop menu music if it's playing when starting the game
+                if self.menu_music.playing() {
+                    self.menu_music.stop(ctx)?;
+                }
+                // Start appropriate game music if not playing
+                if !self.game_music.playing() && !self.special_mode_music.playing() {
+                    match self.difficulty {
+                        Difficulty::Special => {
+                            // Stop regular game music if playing (safety check)
+                             if self.game_music.playing() {
+                                self.game_music.stop(ctx)?;
+                             }
+                            self.special_mode_music.play(ctx)?;
+                        }
+                        _ => {
+                            // Stop special music if playing (safety check)
+                            if self.special_mode_music.playing() {
+                                self.special_mode_music.stop(ctx)?;
+                            }
+                            self.game_music.set_pitch(self.music_speed); // This doesnt seem to work ;( 
+                            self.game_music.play(ctx)?;
+                        }
+                    }
+                }
+
                 self.last_update += ctx.time.delta().as_secs_f32();
                 if self.last_update >= self.move_time {
                     self.last_update = 0.0;
@@ -244,6 +333,9 @@ impl EventHandler for GameState {
                     if dist_x < self.scaled_snake_size - EPSILON
                         && dist_y < self.scaled_snake_size - EPSILON
                     {
+                        // Play eat sound
+                        self.eat_sound.play(ctx)?;
+
                         // Eat the food and grow
                         self.snake_body.push(SnakeSegment { pos: last_pos });
                         self.score += 1;
@@ -279,6 +371,15 @@ impl EventHandler for GameState {
                     for segment in &self.snake_body[1..] {
                         if self.snake_body[0].pos == segment.pos {
                             self.mode = GameMode::Menu;
+                            // Play game over sound
+                            self.game_over_sound.play(ctx)?;
+                            // Stop game music on game over
+                            self.game_music.set_pitch(1.0); // Reset pitch
+                            self.game_music.stop(ctx)?;
+                            // Stop special music if playing
+                            if self.special_mode_music.playing() {
+                                self.special_mode_music.stop(ctx)?;
+                            }
                             break;
                         }
                     }
@@ -286,6 +387,15 @@ impl EventHandler for GameState {
                     // Check for boundary collisions
                     if self.check_border_collisions() {
                         self.mode = GameMode::Menu;
+                        // Play game over sound
+                        self.game_over_sound.play(ctx)?;
+                        // Stop game music on game over
+                        self.game_music.set_pitch(1.0); // Reset pitch
+                        self.game_music.stop(ctx)?;
+                        // Stop special music if playing
+                        if self.special_mode_music.playing() {
+                            self.special_mode_music.stop(ctx)?;
+                        }
                     }
                 }
             }
@@ -379,6 +489,21 @@ impl EventHandler for GameState {
                         .color(special_color),
                 );
 
+                let mut volume_text = Text::new(format!(
+                    "Volume: {:.0}% (+/- to change)",
+                    self.music_volume * 100.0
+                ));
+                volume_text.set_scale(graphics::PxScale::from(40.0 * self.scale));
+                canvas.draw(
+                    &volume_text,
+                    DrawParam::default()
+                        .dest(mint::Point2 {
+                            x: self.boundary_width * 0.5 - (300.0 * self.scale) + self.offset_x,
+                            y: self.boundary_height * 0.75 + self.offset_y,
+                        })
+                        .color(Color::WHITE),
+                );
+
                 let mut menu_high_score_text =
                     Text::new(format!("High Score: {}", self.high_score));
                 menu_high_score_text.set_scale(graphics::PxScale::from(60.0 * self.scale));
@@ -446,24 +571,76 @@ impl EventHandler for GameState {
     fn key_down_event(&mut self, ctx: &mut Context, key: KeyInput, _repeat: bool) -> GameResult {
         match self.mode {
             GameMode::Menu => {
-                if let Some(KeyCode::Return) = key.keycode {
-                    // Start the game
-                    self.mode = GameMode::Playing;
-                    self.reset_game_state();
-                } else if let Some(KeyCode::Escape) = key.keycode {
-                    ctx.request_quit();
-                } else if let Some(KeyCode::Key1) = key.keycode {
-                    // Set difficulty to Easy
-                    self.difficulty = Difficulty::Easy;
-                } else if let Some(KeyCode::Key2) = key.keycode {
-                    // Set difficulty to Normal
-                    self.difficulty = Difficulty::Normal;
-                } else if let Some(KeyCode::Key3) = key.keycode {
-                    // Set difficulty to Hard
-                    self.difficulty = Difficulty::Hard;
-                } else if let Some(KeyCode::Key4) = key.keycode {
-                    // Set difficulty to Special
-                    self.difficulty = Difficulty::Special;
+                // Play sound on any relevant key press in the menu
+                let mut play_sound = false;
+                let mut volume_changed = false;
+
+                if let Some(keycode) = key.keycode {
+                    match keycode {
+                        KeyCode::Return => {
+                            // Start the game
+                            self.mode = GameMode::Playing;
+                            self.reset_game_state();
+                            play_sound = true;
+                        }
+                        KeyCode::Escape => {
+                            ctx.request_quit();
+                            play_sound = true;
+                        }
+                        KeyCode::Key1 => {
+                            // Set difficulty to Easy
+                            if !matches!(self.difficulty, Difficulty::Easy) {
+                                self.difficulty = Difficulty::Easy;
+                                play_sound = true;
+                            }
+                        }
+                        KeyCode::Key2 => {
+                            // Set difficulty to Normal
+                             if !matches!(self.difficulty, Difficulty::Normal) {
+                                self.difficulty = Difficulty::Normal;
+                                play_sound = true;
+                             }
+                        }
+                        KeyCode::Key3 => {
+                            // Set difficulty to Hard
+                             if !matches!(self.difficulty, Difficulty::Hard) {
+                                self.difficulty = Difficulty::Hard;
+                                play_sound = true;
+                             }
+                        }
+                        KeyCode::Key4 => {
+                            // Set difficulty to Special
+                            if !matches!(self.difficulty, Difficulty::Special) {
+                                self.difficulty = Difficulty::Special;
+                                play_sound = true;
+                             }
+                        }
+                        KeyCode::Equals | KeyCode::Plus => {
+                            // Increase volume
+                            self.music_volume = (self.music_volume + 0.1).min(1.0);
+                            volume_changed = true;
+                        }
+                        KeyCode::Minus => {
+                            // Decrease volume
+                            self.music_volume = (self.music_volume - 0.1).max(0.0);
+                            volume_changed = true;
+                        }
+                        _ => {} // Ignore other keys
+                    }
+                }
+                if play_sound {
+                    // Stop the sound first to allow retriggering if pressed quickly
+                    self.menu_change_sound.stop(ctx)?;
+                    self.menu_change_sound.play(ctx)?;
+                }
+                if volume_changed {
+                    self.menu_music.set_volume(self.music_volume);
+                    self.game_music.set_volume(self.music_volume);
+                    self.eat_sound.set_volume(self.music_volume);
+                    self.game_over_sound.set_volume(self.music_volume);
+                    self.special_mode_music.set_volume(self.music_volume);
+                    self.menu_change_sound.stop(ctx)?;
+                    self.menu_change_sound.play(ctx)?;
                 }
             }
             GameMode::Playing => match key.keycode {
@@ -481,6 +658,12 @@ impl EventHandler for GameState {
                 }
                 Some(KeyCode::Escape) => {
                     self.mode = GameMode::Menu;
+                    // Reset pitch when escaping to menu
+                    self.game_music.set_pitch(1.0);
+                    // Stop special music if playing
+                    if self.special_mode_music.playing() {
+                        self.special_mode_music.stop(ctx)?;
+                    }
                 }
                 _ => {}
             },
@@ -490,6 +673,9 @@ impl EventHandler for GameState {
 }
 
 fn main() -> GameResult {
+    // Determine if running as a bundle (CARGO_MANIFEST_DIR not set)
+    let is_bundle = std::env::var("CARGO_MANIFEST_DIR").is_err();
+
     let (mut ctx, event_loop) = ggez::ContextBuilder::new("Rust Snake Game", "Jacob Mish")
         .window_setup(ggez::conf::WindowSetup::default().title("Snake Game"))
         .window_mode(
@@ -499,8 +685,28 @@ fn main() -> GameResult {
                 .resizable(true)
                 .transparent(true),
         )
+        .add_resource_path(if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+            let mut path = PathBuf::from(manifest_dir);
+            path.push("resources");
+            path
+        } else {
+            let mut path = PathBuf::new();
+            if let Ok(exe_path) = std::env::current_exe() {
+                path = exe_path;
+                path.pop();
+                if cfg!(target_os = "macos") {
+                    path.pop();
+                    path.push("Resources");
+                }
+            }
+            if !path.ends_with("Resources") && !path.ends_with("resources") {
+                path.push("resources");
+            }
+            path
+        })
         .build()?;
 
-    let state = GameState::new(&mut ctx)?;
+    // Pass the is_bundle flag to GameState::new
+    let state = GameState::new(&mut ctx, is_bundle)?;
     event::run(ctx, event_loop, state)
 }
