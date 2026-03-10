@@ -8,7 +8,7 @@ use ggez::{
 };
 use nalgebra as na;
 use rand::rngs::ThreadRng;
-use rand::Rng;
+use rand::RngExt;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::PathBuf;
